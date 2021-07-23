@@ -2,63 +2,46 @@ diff --git a/BUILD.gn b/BUILD.gn
 index fddd525297..d1a2abfe8d 100644
 --- a/BUILD.gn
 +++ b/BUILD.gn
-@@ -262,9 +262,7 @@ config("internal_config") {
-     ":v8_header_features",
-   ]
-
--  if (is_component_build) {
--    defines += [ "BUILDING_V8_SHARED" ]
--  }
-+  defines += [ "BUILDING_V8_SHARED" ]
- }
-
- # This config should be applied to code using the libplatform.
-@@ -3367,7 +3365,7 @@ v8_source_set("torque_ls_base") {
+@@ -3367,7 +3367,7 @@ v8_source_set("torque_ls_base") {
    }
  }
-
+ 
 -v8_component("v8_libbase") {
 +v8_source_set("v8_libbase") {
    sources = [
      "src/base/adapters.h",
      "src/base/address-region.h",
-@@ -3455,11 +3453,7 @@ v8_component("v8_libbase") {
-
-   data_deps = []
-
--  defines = []
--
--  if (is_component_build) {
--    defines = [ "BUILDING_V8_BASE_SHARED" ]
--  }
-+  defines = [ "BUILDING_V8_BASE_SHARED" ]
-
-   if (is_posix || is_fuchsia) {
-     sources += [
-@@ -3561,7 +3559,7 @@ v8_component("v8_libbase") {
+@@ -3561,7 +3561,7 @@ v8_component("v8_libbase") {
    # TODO(jochen): Add support for qnx, freebsd, openbsd, netbsd, and solaris.
  }
-
+ 
 -v8_component("v8_libplatform") {
 +v8_source_set("v8_libplatform") {
    sources = [
      "//base/trace_event/common/trace_event_common.h",
      "include/libplatform/libplatform-export.h",
-@@ -3590,9 +3584,7 @@ v8_component("v8_libplatform") {
-
-   configs = [ ":internal_config_base" ]
-
--  if (is_component_build) {
--    defines = [ "BUILDING_V8_PLATFORM_SHARED" ]
--  }
-+  defines = [ "BUILDING_V8_PLATFORM_SHARED" ]
-
-   public_configs = [ ":libplatform_config" ]
-
-@@ -3685,6 +3683,23 @@ v8_static_library("wee8") {
+@@ -3897,7 +3897,7 @@ group("v8_fuzzers") {
+ }
+ 
+ if (is_component_build) {
+-  v8_component("v8") {
++  v8_source_set("v8") {
+     sources = [
+       "src/v8dll-main.cc",
+     ]
+@@ -3912,7 +3912,7 @@ if (is_component_build) {
+     public_configs = [ ":external_config" ]
+   }
+ 
+-  v8_component("v8_for_testing") {
++  v8_source_set("v8_for_testing") {
+     testonly = true
+ 
+     sources = [
+@@ -3963,6 +3963,23 @@ if (is_component_build) {
    }
  }
-
+ 
 +v8_loadable_module("libv8") {
 +  defines = [ "BUILDING_V8_SHARED" ]
 +
@@ -76,27 +59,9 @@ index fddd525297..d1a2abfe8d 100644
 +  configs = [ ":internal_config" ]
 +}
 +
- ###############################################################################
- # Executables
- #
- @@ -3897,7 +3906,7 @@ group("v8_fuzzers") {
- }
- 
- if (is_component_build) {
--  v8_component("v8") {
-+  v8_source_set("v8") {
-     sources = [
-       "src/v8dll-main.cc",
-     ]
-@@ -3912,7 +3921,7 @@ if (is_component_build) {
-     public_configs = [ ":external_config" ]
-   }
- 
--  v8_component("v8_for_testing") {
-+  v8_source_set("v8_for_testing") {
-     testonly = true
- 
-     sources = [
+ v8_executable("d8") {
+   sources = [
+     "src/async-hooks-wrapper.cc",
 diff --git a/gni/v8.gni b/gni/v8.gni
 index 2a691dfa60..bad875becc 100644
 --- a/gni/v8.gni
