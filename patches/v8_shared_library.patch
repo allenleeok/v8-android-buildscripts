@@ -79,6 +79,24 @@ index fddd525297..d1a2abfe8d 100644
  ###############################################################################
  # Executables
  #
+ @@ -3897,7 +3906,7 @@ group("v8_fuzzers") {
+ }
+ 
+ if (is_component_build) {
+-  v8_component("v8") {
++  v8_source_set("v8") {
+     sources = [
+       "src/v8dll-main.cc",
+     ]
+@@ -3912,7 +3921,7 @@ if (is_component_build) {
+     public_configs = [ ":external_config" ]
+   }
+ 
+-  v8_component("v8_for_testing") {
++  v8_source_set("v8_for_testing") {
+     testonly = true
+ 
+     sources = [
 diff --git a/gni/v8.gni b/gni/v8.gni
 index 2a691dfa60..bad875becc 100644
 --- a/gni/v8.gni
