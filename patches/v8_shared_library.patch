@@ -63,7 +63,7 @@ index c486f1a..6aeb762 100644
 +  defines = [ "BUILDING_V8_SHARED" ]
 +
 +  sources = [
-+    "src/utils/v8dll-main.cc",
++    "src/v8dll-main.cc",
 +  ]
 +
 +  deps = [
