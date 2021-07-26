@@ -113,9 +113,9 @@ function build_arch()
 
 if [[ ${PLATFORM} = "android" ]]; then
   build_arch "arm"
-  build_arch "x86"
-  build_arch "arm64"
-  build_arch "x64"
+  #build_arch "x86"
+  #build_arch "arm64"
+  #build_arch "x64"
 elif [[ ${PLATFORM} = "ios" ]]; then
   build_arch "arm64"
   build_arch "x64"

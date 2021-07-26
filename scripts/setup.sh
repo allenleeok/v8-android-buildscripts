@@ -51,6 +51,6 @@ if [[ ${PLATFORM} = "android" ]]; then
   # Workaround to install missing android_sdk tools
   gclient sync --deps=android ${GCLIENT_SYNC_ARGS}
 
-  installNDK
+  # installNDK
   exit 0
 fi

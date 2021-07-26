@@ -35,7 +35,7 @@ V8_PATCHSET_IOS=(
 # Setup custom NDK for v8 build
 #
 function setupNDK() {
-  echo "default_android_ndk_root = \"//android-ndk-${NDK_VERSION}\"" >> ${V8_DIR}/build_overrides/build.gni
+  echo "default_android_ndk_root = \"/code/android-ndk-${NDK_VERSION}\"" >> ${V8_DIR}/build_overrides/build.gni
   echo "default_android_ndk_version = \"${NDK_VERSION}\"" >> ${V8_DIR}/build_overrides/build.gni
   ndk_major_version=`echo "${NDK_VERSION//[^0-9.]/}"`
   echo "default_android_ndk_major_version = ${ndk_major_version}" >> ${V8_DIR}/build_overrides/build.gni

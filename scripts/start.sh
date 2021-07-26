@@ -16,8 +16,8 @@ fi
 cd "${ROOT_DIR}"
 scripts/patch.sh ${PLATFORM}
 
-scripts/build.sh ${PLATFORM}
-scripts/archive.sh ${PLATFORM}
+#scripts/build.sh ${PLATFORM}
+# scripts/archive.sh ${PLATFORM}
 
 NO_INTL=1 scripts/build.sh ${PLATFORM}
-NO_INTL=1 scripts/archive.sh ${PLATFORM}
+# NO_INTL=1 scripts/archive.sh ${PLATFORM}
