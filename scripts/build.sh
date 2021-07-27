@@ -4,17 +4,20 @@ BUILD_TYPE="Release"
 # BUILD_TYPE="Debug"
 
 GN_ARGS_BASE="
+  v8_enable_backtrace=false
+  v8_enable_slow_dchecks=true
+  v8_optimized_debug=false
   target_os=\"${PLATFORM}\"
-  is_component_build=false
-  use_debug_fission=false
-  use_custom_libcxx=false
+  is_component_build=true
+  v8_android_log_stdout=true
   v8_use_external_startup_data=false
-  icu_use_data_file=false
+  v8_use_snapshot=true
+  v8_enable_debugging_features=false
+  v8_enable_embedded_builtins=true
+  is_clang=true
+  use_custom_libcxx=false
+  v8_enable_i18n_support=false
 "
-
-if [[ ${PLATFORM} = "ios" ]]; then
-  GN_ARGS_BASE="${GN_ARGS_BASE} enable_ios_bitcode=false use_xcode_clang=true ios_enable_code_signing=false v8_enable_pointer_compression=false ios_deployment_target=${IOS_DEPLOYMENT_TARGET}"
-fi
 
 if [[ ${NO_INTL} = "1" ]]; then
   GN_ARGS_BASE="${GN_ARGS_BASE} v8_enable_i18n_support=false"
@@ -48,11 +51,6 @@ function normalize_arch_for_platform()
 {
   local arch=$1
 
-  if [[ ${PLATFORM} = "ios" ]]; then
-    echo ${arch}
-    return
-  fi
-
   case "$1" in
     arm)
       echo "armeabi-v7a"
@@ -81,17 +79,14 @@ function build_arch()
   local target=''
   local target_ext=''
   if [[ ${PLATFORM} = "android" ]]; then
-    target="libv8android"
+    target="mtv8"
     target_ext=".so"
-  elif [[ ${PLATFORM} = "ios" ]]; then
-    target="libv8"
-    target_ext=".dylib"
   else
     exit 1
   fi
 
   echo "Build v8 ${arch} variant NO_INTL=${NO_INTL}"
-  gn gen --args="${GN_ARGS_BASE} ${GN_ARGS_BUILD_TYPE} target_cpu=\"${arch}\"" "out.v8.${arch}"
+  gn gen --args="${GN_ARGS_BASE} ${GN_ARGS_BUILD_TYPE} v8_target_cpu=\"${arch}\" target_cpu=\"${arch}\"" "out.v8.${arch}"
 
   if [[ ${MKSNAPSHOT_ONLY} = "1" ]]; then
     date ; ninja ${NINJA_PARAMS} -C "out.v8.${arch}" run_mksnapshot_default ; date
@@ -113,10 +108,5 @@ function build_arch()
 
 if [[ ${PLATFORM} = "android" ]]; then
   build_arch "arm"
-  build_arch "x86"
   build_arch "arm64"
-  build_arch "x64"
-elif [[ ${PLATFORM} = "ios" ]]; then
-  build_arch "arm64"
-  build_arch "x64"
 fi

@@ -1,0 +1,473 @@
+diff --git a/BUILD.gn b/BUILD.gn
+index 10fee26420..3c61b438cc 100644
+--- a/BUILD.gn
++++ b/BUILD.gn
+@@ -262,9 +262,7 @@ config("internal_config") {
+     ":v8_header_features",
+   ]
+ 
+-  if (is_component_build) {
+-    defines += [ "BUILDING_V8_SHARED" ]
+-  }
++  defines += [ "BUILDING_V8_SHARED" ]
+ }
+ 
+ # This config should be applied to code using the libplatform.
+@@ -3367,7 +3365,7 @@ v8_source_set("torque_ls_base") {
+   }
+ }
+ 
+-v8_component("v8_libbase") {
++v8_source_set("v8_libbase") {
+   sources = [
+     "src/base/adapters.h",
+     "src/base/address-region.h",
+@@ -3455,11 +3453,7 @@ v8_component("v8_libbase") {
+ 
+   data_deps = []
+ 
+-  defines = []
+-
+-  if (is_component_build) {
+-    defines = [ "BUILDING_V8_BASE_SHARED" ]
+-  }
++  defines = [ "BUILDING_V8_BASE_SHARED" ]
+ 
+   if (is_posix || is_fuchsia) {
+     sources += [
+@@ -3561,7 +3555,7 @@ v8_component("v8_libbase") {
+   # TODO(jochen): Add support for qnx, freebsd, openbsd, netbsd, and solaris.
+ }
+ 
+-v8_component("v8_libplatform") {
++v8_source_set("v8_libplatform") {
+   sources = [
+     "//base/trace_event/common/trace_event_common.h",
+     "include/libplatform/libplatform-export.h",
+@@ -3590,9 +3584,7 @@ v8_component("v8_libplatform") {
+ 
+   configs = [ ":internal_config_base" ]
+ 
+-  if (is_component_build) {
+-    defines = [ "BUILDING_V8_PLATFORM_SHARED" ]
+-  }
++  defines = [ "BUILDING_V8_PLATFORM_SHARED" ]
+ 
+   public_configs = [ ":libplatform_config" ]
+ 
+@@ -3685,6 +3677,23 @@ v8_static_library("wee8") {
+   ]
+ }
+ 
++v8_loadable_module("libv8android") {
++  defines = [ "BUILDING_V8_SHARED" ]
++
++  sources = [
++    "src/v8dll-main.cc",
++  ]
++
++  deps = [
++    ":v8",
++    ":v8_libbase",
++    ":v8_libplatform",
++    ":v8_snapshot",
++  ]
++
++  configs = [ ":internal_config" ]
++}
++
+ ###############################################################################
+ # Executables
+ #
+@@ -3897,7 +3906,7 @@ group("v8_fuzzers") {
+ }
+ 
+ if (is_component_build) {
+-  v8_component("v8") {
++  v8_source_set("v8") {
+     sources = [
+       "src/v8dll-main.cc",
+     ]
+@@ -3912,7 +3921,7 @@ if (is_component_build) {
+     public_configs = [ ":external_config" ]
+   }
+ 
+-  v8_component("v8_for_testing") {
++  v8_source_set("v8_for_testing") {
+     testonly = true
+ 
+     sources = [
+diff --git a/build_overrides/build.gni b/build_overrides/build.gni
+index 12ef8b28d6..a40102e279 100644
+--- a/build_overrides/build.gni
++++ b/build_overrides/build.gni
+@@ -37,3 +37,6 @@ ignore_elf32_limitations = true
+ 
+ # Use the system install of Xcode for tools like ibtool, libtool, etc.
+ use_system_xcode = true
++default_android_ndk_root = "/code/android-ndk-r21b"
++default_android_ndk_version = "r21b"
++default_android_ndk_major_version = 21
+diff --git a/gni/v8.gni b/gni/v8.gni
+index 0a120df8e1..2fd75fd38a 100644
+--- a/gni/v8.gni
++++ b/gni/v8.gni
+@@ -226,3 +226,12 @@ template("v8_static_library") {
+     configs += invoker.configs
+   }
+ }
++
++template("v8_loadable_module") {
++  loadable_module(target_name) {
++    forward_variables_from(invoker, "*", [ "configs" ])
++    configs -= v8_remove_configs
++    configs += v8_add_configs
++    configs += invoker.configs
++  }
++}
+diff --git a/include/libplatform/v8-tracing.h b/include/libplatform/v8-tracing.h
+index bc249cb9ec..ecbf9a941e 100644
+--- a/include/libplatform/v8-tracing.h
++++ b/include/libplatform/v8-tracing.h
+@@ -38,7 +38,7 @@ class V8_PLATFORM_EXPORT TraceObject {
+ 
+   TraceObject() = default;
+   ~TraceObject();
+-  void Initialize(
++  V8_PLATFORM_EXPORT void Initialize(
+       char phase, const uint8_t* category_enabled_flag, const char* name,
+       const char* scope, uint64_t id, uint64_t bind_id, int num_args,
+       const char** arg_names, const uint8_t* arg_types,
+@@ -112,8 +112,8 @@ class V8_PLATFORM_EXPORT TraceWriter {
+   virtual void AppendTraceEvent(TraceObject* trace_event) = 0;
+   virtual void Flush() = 0;
+ 
+-  static TraceWriter* CreateJSONTraceWriter(std::ostream& stream);
+-  static TraceWriter* CreateJSONTraceWriter(std::ostream& stream,
++  V8_PLATFORM_EXPORT static TraceWriter* CreateJSONTraceWriter(std::ostream& stream);
++  V8_PLATFORM_EXPORT static TraceWriter* CreateJSONTraceWriter(std::ostream& stream,
+                                             const std::string& tag);
+ 
+  private:
+diff --git a/include/v8.h b/include/v8.h
+index b4b920555b..814bdd3a29 100644
+--- a/include/v8.h
++++ b/include/v8.h
+@@ -1703,6 +1703,14 @@ class V8_EXPORT ScriptCompiler {
+       CompileOptions options = kNoCompileOptions,
+       NoCacheReason no_cache_reason = kNoCacheNoReason);
+ 
++  static V8_WARN_UNUSED_RESULT MaybeLocal<Function> CompileFunctionInContext(
++      Local<Context> context, Source* source, size_t arguments_count,
++      Local<String> arguments[], size_t context_extension_count,
++      Local<Object> context_extensions[], CompileOptions options,
++      NoCacheReason no_cache_reason,
++      Local<ScriptOrModule>* script_or_module_out);
++
++
+   /**
+    * Creates and returns code cache for the specified unbound_script.
+    * This will return nullptr if the script cannot be serialized. The
+@@ -8610,6 +8618,7 @@ class V8_EXPORT Isolate {
+ 
+ class V8_EXPORT StartupData {
+  public:
++  bool CanBeRehashed() const;
+   const char* data;
+   int raw_size;
+ };
+diff --git a/src/api.cc b/src/api.cc
+index a52fadc2ee..b13c9ce0c9 100644
+--- a/src/api.cc
++++ b/src/api.cc
+@@ -887,6 +887,11 @@ StartupData SnapshotCreator::CreateBlob(
+   return result;
+ }
+ 
++bool StartupData::CanBeRehashed() const {
++  DCHECK(i::Snapshot::VerifyChecksum(this));
++  return i::Snapshot::ExtractRehashability(this);
++}
++
+ void V8::SetDcheckErrorHandler(DcheckErrorCallback that) {
+   v8::base::SetDcheckFunction(that);
+ }
+@@ -2495,69 +2500,92 @@ MaybeLocal<Function> ScriptCompiler::CompileFunctionInContext(
+     Local<String> arguments[], size_t context_extension_count,
+     Local<Object> context_extensions[], CompileOptions options,
+     NoCacheReason no_cache_reason) {
+-  PREPARE_FOR_EXECUTION(v8_context, ScriptCompiler, CompileFunctionInContext,
+-                        Function);
+-  TRACE_EVENT_CALL_STATS_SCOPED(isolate, "v8", "V8.ScriptCompiler");
++  return ScriptCompiler::CompileFunctionInContext(
++      v8_context, source, arguments_count, arguments, context_extension_count,
++      context_extensions, options, no_cache_reason, nullptr);
++}
+ 
+-  DCHECK(options == CompileOptions::kConsumeCodeCache ||
+-         options == CompileOptions::kEagerCompile ||
+-         options == CompileOptions::kNoCompileOptions);
++MaybeLocal<Function> ScriptCompiler::CompileFunctionInContext(
++    Local<Context> v8_context, Source* source, size_t arguments_count,
++    Local<String> arguments[], size_t context_extension_count,
++    Local<Object> context_extensions[], CompileOptions options,
++    NoCacheReason no_cache_reason,
++    Local<ScriptOrModule>* script_or_module_out) {
++  Local<Function> result;
+ 
+-  i::Handle<i::Context> context = Utils::OpenHandle(*v8_context);
++  {
++    PREPARE_FOR_EXECUTION(v8_context, ScriptCompiler, CompileFunctionInContext,
++                          Function);
++    TRACE_EVENT_CALL_STATS_SCOPED(isolate, "v8", "V8.ScriptCompiler");
++
++    DCHECK(options == CompileOptions::kConsumeCodeCache ||
++           options == CompileOptions::kEagerCompile ||
++           options == CompileOptions::kNoCompileOptions);
++
++    i::Handle<i::Context> context = Utils::OpenHandle(*v8_context);
++    DCHECK(context->IsNativeContext());
++
++    i::Handle<i::FixedArray> arguments_list =
++        isolate->factory()->NewFixedArray(static_cast<int>(arguments_count));
++    for (int i = 0; i < static_cast<int>(arguments_count); i++) {
++      i::Handle<i::String> argument = Utils::OpenHandle(*arguments[i]);
++      if (!IsIdentifier(isolate, argument)) return Local<Function>();
++      arguments_list->set(i, *argument);
++    }
+ 
+-  DCHECK(context->IsNativeContext());
+-  i::Handle<i::SharedFunctionInfo> outer_info(
+-      context->empty_function()->shared(), isolate);
+-
+-  i::Handle<i::JSFunction> fun;
+-  i::Handle<i::FixedArray> arguments_list =
+-      isolate->factory()->NewFixedArray(static_cast<int>(arguments_count));
+-  for (int i = 0; i < static_cast<int>(arguments_count); i++) {
+-    i::Handle<i::String> argument = Utils::OpenHandle(*arguments[i]);
+-    if (!IsIdentifier(isolate, argument)) return Local<Function>();
+-    arguments_list->set(i, *argument);
+-  }
+-
+-  for (size_t i = 0; i < context_extension_count; ++i) {
+-    i::Handle<i::JSReceiver> extension =
+-        Utils::OpenHandle(*context_extensions[i]);
+-    if (!extension->IsJSObject()) return Local<Function>();
+-    context = isolate->factory()->NewWithContext(
+-        context,
+-        i::ScopeInfo::CreateForWithScope(
+-            isolate,
+-            context->IsNativeContext()
+-                ? i::Handle<i::ScopeInfo>::null()
+-                : i::Handle<i::ScopeInfo>(context->scope_info(), isolate)),
+-        extension);
+-  }
++    for (size_t i = 0; i < context_extension_count; ++i) {
++      i::Handle<i::JSReceiver> extension =
++          Utils::OpenHandle(*context_extensions[i]);
++      if (!extension->IsJSObject()) return Local<Function>();
++      context = isolate->factory()->NewWithContext(
++          context,
++          i::ScopeInfo::CreateForWithScope(
++              isolate,
++              context->IsNativeContext()
++                  ? i::Handle<i::ScopeInfo>::null()
++                  : i::Handle<i::ScopeInfo>(context->scope_info(), isolate)),
++          extension);
++    }
+ 
+-  i::Compiler::ScriptDetails script_details = GetScriptDetails(
+-      isolate, source->resource_name, source->resource_line_offset,
+-      source->resource_column_offset, source->source_map_url,
+-      source->host_defined_options);
++    i::Compiler::ScriptDetails script_details = GetScriptDetails(
++        isolate, source->resource_name, source->resource_line_offset,
++        source->resource_column_offset, source->source_map_url,
++        source->host_defined_options);
++
++    i::ScriptData* script_data = nullptr;
++    if (options == kConsumeCodeCache) {
++      DCHECK(source->cached_data);
++      // ScriptData takes care of pointer-aligning the data.
++      script_data = new i::ScriptData(source->cached_data->data,
++                                      source->cached_data->length);
++    }
++
++    i::Handle<i::JSFunction> scoped_result;
++    has_pending_exception =
++        !i::Compiler::GetWrappedFunction(
++             Utils::OpenHandle(*source->source_string), arguments_list, context,
++             script_details, source->resource_options, script_data, options,
++             no_cache_reason)
++             .ToHandle(&scoped_result);
++    if (options == kConsumeCodeCache) {
++      source->cached_data->rejected = script_data->rejected();
++    }
++    delete script_data;
++    RETURN_ON_FAILED_EXECUTION(Function);
++    result = handle_scope.Escape(Utils::CallableToLocal(scoped_result));
+ 
+-  i::ScriptData* script_data = nullptr;
+-  if (options == kConsumeCodeCache) {
+-    DCHECK(source->cached_data);
+-    // ScriptData takes care of pointer-aligning the data.
+-    script_data = new i::ScriptData(source->cached_data->data,
+-                                    source->cached_data->length);
+   }
++  if (script_or_module_out != nullptr) {
++    i::Handle<i::JSFunction> function =
++        i::Handle<i::JSFunction>::cast(Utils::OpenHandle(*result));
++    i::Isolate* isolate = function->GetIsolate();
++    i::Handle<i::SharedFunctionInfo> shared(function->shared(), isolate);
++    i::Handle<i::Script> script(i::Script::cast(shared->script()), isolate);
++    *script_or_module_out = v8::Utils::ScriptOrModuleToLocal(script);
+ 
+-  i::Handle<i::JSFunction> result;
+-  has_pending_exception =
+-      !i::Compiler::GetWrappedFunction(
+-           Utils::OpenHandle(*source->source_string), arguments_list, context,
+-           script_details, source->resource_options, script_data, options,
+-           no_cache_reason)
+-           .ToHandle(&result);
+-  if (options == kConsumeCodeCache) {
+-    source->cached_data->rejected = script_data->rejected();
+   }
+-  delete script_data;
+-  RETURN_ON_FAILED_EXECUTION(Function);
+-  RETURN_ESCAPED(Utils::CallableToLocal(result));
++  return result;
++
+ }
+ 
+ void ScriptCompiler::ScriptStreamingTask::Run() { data_->task->Run(); }
+diff --git a/src/snapshot/serializer.cc b/src/snapshot/serializer.cc
+index 0096b2c4fb..447a69aea8 100644
+--- a/src/snapshot/serializer.cc
++++ b/src/snapshot/serializer.cc
+@@ -116,10 +116,12 @@ void Serializer::SerializeRootObject(Object object) {
+ }
+ 
+ #ifdef DEBUG
+-void Serializer::PrintStack() {
++void Serializer::PrintStack() { PrintStack(std::cout); }
++
++void Serializer::PrintStack(std::ostream& out) {
+   for (const auto o : stack_) {
+-    o->Print();
+-    PrintF("\n");
++    o.Print(out);
++    out << "\n";
+   }
+ }
+ #endif  // DEBUG
+diff --git a/src/snapshot/serializer.h b/src/snapshot/serializer.h
+index 9f7c0ac90c..49ffddbefb 100644
+--- a/src/snapshot/serializer.h
++++ b/src/snapshot/serializer.h
+@@ -250,6 +250,7 @@ class Serializer : public SerializerDeserializer {
+   void PushStack(HeapObject o) { stack_.push_back(o); }
+   void PopStack() { stack_.pop_back(); }
+   void PrintStack();
++  void PrintStack(std::ostream&);
+ #endif  // DEBUG
+ 
+   SerializerReferenceMap* reference_map() { return &reference_map_; }
+diff --git a/src/snapshot/snapshot-common.cc b/src/snapshot/snapshot-common.cc
+index 09532aafa0..271317836c 100644
+--- a/src/snapshot/snapshot-common.cc
++++ b/src/snapshot/snapshot-common.cc
+@@ -229,7 +229,9 @@ uint32_t Snapshot::ExtractContextOffset(const v8::StartupData* data,
+ 
+ bool Snapshot::ExtractRehashability(const v8::StartupData* data) {
+   CHECK_LT(kRehashabilityOffset, static_cast<uint32_t>(data->raw_size));
+-  return GetHeaderValue(data, kRehashabilityOffset) != 0;
++  uint32_t rehashability = GetHeaderValue(data, kRehashabilityOffset);
++  CHECK_IMPLIES(rehashability != 0, rehashability == 1);
++  return rehashability != 0;
+ }
+ 
+ namespace {
+diff --git a/src/snapshot/snapshot.h b/src/snapshot/snapshot.h
+index e8894a2331..be12a248bd 100644
+--- a/src/snapshot/snapshot.h
++++ b/src/snapshot/snapshot.h
+@@ -86,11 +86,12 @@ class Snapshot : public AllStatic {
+   static bool SnapshotIsValid(const v8::StartupData* snapshot_blob);
+ #endif  // DEBUG
+ 
++  static bool ExtractRehashability(const v8::StartupData* data);
++
+  private:
+   static uint32_t ExtractNumContexts(const v8::StartupData* data);
+   static uint32_t ExtractContextOffset(const v8::StartupData* data,
+                                        uint32_t index);
+-  static bool ExtractRehashability(const v8::StartupData* data);
+   static Vector<const byte> ExtractStartupData(const v8::StartupData* data);
+   static Vector<const byte> ExtractReadOnlyData(const v8::StartupData* data);
+   static Vector<const byte> ExtractContextData(const v8::StartupData* data,
+diff --git a/src/snapshot/startup-serializer.cc b/src/snapshot/startup-serializer.cc
+index 907b338742..47b3f0f41b 100644
+--- a/src/snapshot/startup-serializer.cc
++++ b/src/snapshot/startup-serializer.cc
+@@ -72,7 +72,16 @@ bool IsUnexpectedCodeObject(Isolate* isolate, HeapObject obj) {
+ #endif  // DEBUG
+ 
+ void StartupSerializer::SerializeObject(HeapObject obj) {
+-  DCHECK(!obj->IsJSFunction());
++#ifdef DEBUG
++  if (obj.IsJSFunction()) {
++    v8::base::OS::PrintError("Reference stack:\n");
++    PrintStack(std::cerr);
++    obj.Print(std::cerr);
++    FATAL(
++        "JSFunction should be added through the context snapshot instead of "
++        "the isolate snapshot");
++  }
++#endif  // DEBUG
+   DCHECK(!IsUnexpectedCodeObject(isolate(), obj));
+ 
+   if (SerializeHotObject(obj)) return;
+diff --git a/test/cctest/test-compiler.cc b/test/cctest/test-compiler.cc
+index 17f7a7d851..84aa00c021 100644
+--- a/test/cctest/test-compiler.cc
++++ b/test/cctest/test-compiler.cc
+@@ -647,11 +647,16 @@ TEST(CompileFunctionInContextScriptOrigin) {
+                           v8::Integer::New(CcTest::isolate(), 22),
+                           v8::Integer::New(CcTest::isolate(), 41));
+   v8::ScriptCompiler::Source script_source(v8_str("throw new Error()"), origin);
++  Local<ScriptOrModule> script;  
+   v8::Local<v8::Function> fun =
+-      v8::ScriptCompiler::CompileFunctionInContext(env.local(), &script_source,
+-                                                   0, nullptr, 0, nullptr)
+-          .ToLocalChecked();
++      v8::ScriptCompiler::CompileFunctionInContext(
++          env.local(), &script_source, 0, nullptr, 0, nullptr,
++          v8::ScriptCompiler::CompileOptions::kNoCompileOptions,
++          v8::ScriptCompiler::NoCacheReason::kNoCacheNoReason, &script)          
++	  .ToLocalChecked();
+   CHECK(!fun.IsEmpty());
++  CHECK(!script.IsEmpty());
++  CHECK(script->GetResourceName()->StrictEquals(v8_str("test")));
+   v8::TryCatch try_catch(CcTest::isolate());
+   CcTest::isolate()->SetCaptureStackTraceForUncaughtExceptions(true);
+   CHECK(fun->Call(env.local(), env->Global(), 0, nullptr).IsEmpty());
+diff --git a/test/cctest/test-serialize.cc b/test/cctest/test-serialize.cc
+index 972b1ca772..02e17fc3c0 100644
+--- a/test/cctest/test-serialize.cc
++++ b/test/cctest/test-serialize.cc
+@@ -3709,6 +3709,7 @@ UNINITIALIZED_TEST(ReinitializeHashSeedNotRehashable) {
+     }
+     blob =
+         creator.CreateBlob(v8::SnapshotCreator::FunctionCodeHandling::kClear);
++    CHECK(!blob.CanBeRehashed());  
+   }
+ 
+   i::FLAG_hash_seed = 1337;
+@@ -3774,6 +3775,7 @@ UNINITIALIZED_TEST(ReinitializeHashSeedRehashable) {
+     }
+     blob =
+         creator.CreateBlob(v8::SnapshotCreator::FunctionCodeHandling::kClear);
++    CHECK(!blob.CanBeRehashed());
+   }
+ 
+   i::FLAG_hash_seed = 1337;

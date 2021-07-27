@@ -6,25 +6,8 @@ source $(dirname $0)/env.sh
 ######################################################################################
 V8_PATCHSET_ANDROID=(
   # V8 shared library support
-  "v8_shared_library.patch"
-
-  # https://github.com/Kudo/react-native-v8/issues/27
-  "workaround_jsi_object_freeze.patch"
-
-  # Support to specify custom timezone
-  # https://github.com/Kudo/react-native-v8/issues/37
-  "custom_timezone.patch"
-)
-
-V8_PATCHSET_IOS=(
-  # V8 shared library support
-  "v8_shared_library_ios.patch"
-
-  # https://github.com/Kudo/react-native-v8/issues/27
-  "workaround_jsi_object_freeze.patch"
-
-  # Workaround latest Xcode12 build break on non Apple Silicon
-  "v8_ios_host_break.patch"
+  "v8_shared_library.patch",
+  "v8_backports_support.patch"
 )
 
 ######################################################################################
@@ -50,10 +33,4 @@ if [[ ${PLATFORM} = "android" ]]; then
   done
 
   setupNDK
-elif [[ ${PLATFORM} = "ios" ]]; then
-  for patch in "${V8_PATCHSET_IOS[@]}"
-  do
-    printf "### Patch set: ${patch}\n"
-    patch -d "${V8_DIR}" -p1 < "${PATCHES_DIR}/$patch"
-  done
 fi
