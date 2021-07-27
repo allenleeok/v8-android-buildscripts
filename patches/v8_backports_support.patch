@@ -59,7 +59,7 @@ index 10fee26420..3c61b438cc 100644
    ]
  }
  
-+v8_loadable_module("libv8android") {
++v8_loadable_module("mtv8") {
 +  defines = [ "BUILDING_V8_SHARED" ]
 +
 +  sources = [

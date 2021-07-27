@@ -1,0 +1,164 @@
+diff -up a/build/android/BUILD.gn b/build/android/BUILD.gn
+--- a/build/android/BUILD.gn
++++ b/build/android/BUILD.gn
+@@ -72,6 +72,52 @@ python_library("devil_chromium_py") {
+   ]
+ }
+ 
++# Copy to the lib.unstripped directory so that gdb can easily find it.
++copy("cpplib_unstripped") {
++  _soname = "libc++_shared.so"
++  sources = [
++    "${android_libcpp_lib_dir}/${_soname}",
++  ]
++  outputs = [
++    "${root_out_dir}/lib.unstripped/${_soname}",
++  ]
++}
++
++action("cpplib_stripped") {
++  _strip_bin = "${android_tool_prefix}strip"
++  _soname = "libc++_shared.so"
++  _input_so = "${root_out_dir}/lib.unstripped/${_soname}"
++  _output_so = "${root_out_dir}/${_soname}"
++
++  deps = [
++    ":cpplib_unstripped",
++  ]
++
++  script = "//build/gn_run_binary.py"
++  inputs = [
++    _strip_bin,
++  ]
++  sources = [
++    _input_so,
++  ]
++  outputs = [
++    _output_so,
++  ]
++  data = [
++    _output_so,
++  ]
++
++  _rebased_strip_bin = rebase_path(_strip_bin, root_build_dir)
++  _rebased_input_so = rebase_path(_input_so, root_build_dir)
++  _rebased_output_so = rebase_path(_output_so, root_build_dir)
++  args = [
++    _rebased_strip_bin,
++    "-o",
++    _rebased_output_so,
++    _rebased_input_so,
++  ]
++}
++
+ python_library("test_runner_py") {
+   pydeps_file = "test_runner.pydeps"
+   data = [
+diff -up a/build/config/android/BUILD.gn b/build/config/android/BUILD.gn
+--- a/build/config/android/BUILD.gn
++++ b/build/config/android/BUILD.gn
+@@ -40,6 +40,7 @@ config("compiler") {
+     # Don't allow visible symbols from libgcc or libc++ to be
+     # re-exported.
+     "-Wl,--exclude-libs=libgcc.a",
++    "-Wl,--exclude-libs=libc++_static.a",
+ 
+     # Don't allow visible symbols from libraries that contain
+     # assembly code with symbols that aren't hidden properly.
+@@ -105,9 +106,30 @@ config("runtime_library") {
+   # arm-linux-androideabi-4.4.3 toolchain (circa Gingerbread) will exhibit
+   # strange errors. The include ordering here is important; change with
+   # caution.
+-  cflags_cc = [ "-isystem" +
+-                rebase_path("$android_ndk_root/sources/android/support/include",
+-                            root_build_dir) ]
++  cflags_cc = []
++  if (!use_custom_libcxx) {
++    if (android_ndk_major_version >= 13) {
++      libcxx_include_path =
++          rebase_path("$android_libcpp_root/include", root_build_dir)
++      libcxxabi_include_path = rebase_path(
++              "$android_ndk_root/sources/cxx-stl/llvm-libc++abi/include",
++              root_build_dir)
++    } else {
++      libcxx_include_path =
++          rebase_path("$android_libcpp_root/libcxx/include", root_build_dir)
++      libcxxabi_include_path = rebase_path(
++              "$android_ndk_root/sources/cxx-stl/llvm-libc++abi/libcxxabi/include",
++              root_build_dir)
++    }
++    cflags_cc += [
++      "-nostdinc++",
++      "-isystem" + libcxx_include_path,
++      "-isystem" + libcxxabi_include_path,
++    ]
++  }
++  cflags_cc += [ "-isystem" + rebase_path(
++                     "$android_ndk_root/sources/android/support/include",
++                     root_build_dir) ]
+ 
+   defines = [
+     "__GNU_SOURCE=1",  # Necessary for clone().
+@@ -117,6 +139,18 @@ config("runtime_library") {
+   lib_dirs = [ android_libcpp_lib_dir ]
+ 
+   libs = []
++  if (!use_custom_libcxx) {
++    # The libc++ runtime library (must come first).
++    # ASan needs to dynamically link to libc++ even in static builds so
++    # that it can interpose operator new.
++    if (is_component_build || is_asan) {
++      libs += [ "c++_shared" ]
++    } else {
++      libs += [ "c++_static" ]
++    }
++    libs += [ "c++abi" ]
++  }
++
+   libs += [ "android_support" ]
+ 
+   # arm builds of libc++ starting in NDK r12 depend on unwind.
+diff -up a/build/toolchain/gcc_toolchain.gni b/build/toolchain/gcc_toolchain.gni
+--- a/build/toolchain/gcc_toolchain.gni
++++ b/build/toolchain/gcc_toolchain.gni
+@@ -503,7 +503,7 @@ template("gcc_toolchain") {
+ 
+       default_output_dir = "{{root_out_dir}}${default_shlib_subdir}"
+ 
+-      output_prefix = "lib"
++      output_prefix = ""
+ 
+       outputs = [
+         sofile,
+diff -up a/build/config/android/rules.gni b/build/config/android/rules.gni
+--- a/build/config/android/rules.gni
++++ b/build/config/android/rules.gni
+@@ -70,6 +70,10 @@ template("create_native_executable_dist"
+     if (defined(invoker.deps)) {
+       data_deps += invoker.deps
+     }
++    if (is_component_build || is_asan) {
++      data_deps += [ "//build/android:cpplib_stripped" ]
++    }
++
+     write_runtime_deps = _runtime_deps_file
+   }
+ 
+@@ -2191,6 +2195,17 @@ if (enable_java_templates) {
+         defined(invoker.secondary_abi_shared_libraries) &&
+         invoker.secondary_abi_shared_libraries != []
+ 
++    if (is_component_build || is_asan) {
++      if (_shared_libraries_is_valid) {
++        _native_libs_deps += [ "//build/android:cpplib_stripped" ]
++      }
++      if (_secondary_abi_shared_libraries_is_valid) {
++        _secondary_abi_native_libs_deps += [
++          "//build/android:cpplib_stripped($android_secondary_abi_toolchain)",
++        ]
++      }
++    }
++
+     if (_shared_libraries_is_valid) {
+       _native_libs_deps += invoker.shared_libraries
+ 
