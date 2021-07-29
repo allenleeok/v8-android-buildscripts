@@ -12,8 +12,8 @@ fi
 cd $ROOT_DIR
 scripts/patch.sh
 
-scripts/build.sh
-scripts/archive.sh
+#scripts/build.sh
+#scripts/archive.sh
 
 NO_INTL=1 scripts/build.sh
-NO_INTL=1 scripts/archive.sh
+#NO_INTL=1 scripts/archive.sh
