@@ -59,7 +59,7 @@ index fddd525297..d1a2abfe8d 100644
    }
  }
 
-+v8_loadable_module("libv8") {
++v8_loadable_module("mtv8") {
 +  defines = [ "BUILDING_V8_SHARED" ]
 +
 +  sources = [

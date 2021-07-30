@@ -64,24 +64,25 @@ function build_arch()
 {
     local arch=$1
     local arch_for_android=$(normalize_arch_for_android $arch)
+    local target="mtv8"
 
     echo "Build v8 $arch variant NO_INTL=${NO_INTL}"
     if [[ "$arch" = "arm64" ]]; then
       # V8 mksnapshot will have alignment exception for lite mode, workaround to turn it off.
-      gn gen --args="$GN_ARGS_BASE $GN_ARGS_BUILD_TYPE target_cpu=\"$arch\" v8_enable_lite_mode=false" out.v8.$arch
+      gn gen --args="$GN_ARGS_BASE $GN_ARGS_BUILD_TYPE v8_target_cpu=\"${arch}\" target_cpu=\"$arch\" v8_enable_lite_mode=false" out.v8.$arch
     else
-      gn gen --args="$GN_ARGS_BASE $GN_ARGS_BUILD_TYPE target_cpu=\"$arch\" v8_enable_lite_mode=true" out.v8.$arch
+      gn gen --args="$GN_ARGS_BASE $GN_ARGS_BUILD_TYPE v8_target_cpu=\"${arch}\" target_cpu=\"$arch\" v8_enable_lite_mode=true" out.v8.$arch
     fi
 
     if [[ ${MKSNAPSHOT_ONLY} -eq "1" ]]; then
       date ; ninja ${NINJA_PARAMS} -C out.v8.$arch run_mksnapshot_default ; date
     else
-      date ; ninja ${NINJA_PARAMS} -C out.v8.$arch libv8 ; date
+      date ; ninja ${NINJA_PARAMS} -C out.v8.$arch ${target} ; date
 
       mkdir -p $BUILD_DIR/lib/$arch_for_android
-      cp -f out.v8.$arch/libv8.so $BUILD_DIR/lib/$arch_for_android/libv8.so
+      cp -f out.v8.$arch/${target}.so $BUILD_DIR/lib/$arch_for_android/${target}.so
       mkdir -p $BUILD_DIR/lib.unstripped/$arch_for_android
-      cp -f out.v8.$arch/lib.unstripped/libv8.so $BUILD_DIR/lib.unstripped/$arch_for_android/libv8.so
+      cp -f out.v8.$arch/lib.unstripped/${target}.so $BUILD_DIR/lib.unstripped/$arch_for_android/${target}.so
     fi
 
     mkdir -p $BUILD_DIR/tools/$arch_for_android
@@ -89,6 +90,6 @@ function build_arch()
 }
 
 build_arch "arm"
-build_arch "x86"
+#build_arch "x86"
 build_arch "arm64"
-build_arch "x64"
+#build_arch "x64"

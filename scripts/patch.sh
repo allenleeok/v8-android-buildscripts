@@ -7,6 +7,9 @@ source $(dirname $0)/env.sh
 V8_PATCHSET=(
   # V8 shared library support
   "v8_shared_library.patch"
+  
+  # v8 backports for nodejs
+  "v8_backports_support.patch"
 
   # Fix cxx includes not found for use_custom_libcxx=false
   # and NDK r17c only provide support lib for arm/x86
