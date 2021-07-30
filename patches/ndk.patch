@@ -28,3 +28,15 @@ index b69d42b..79375bc 100644
 
    # arm builds of libc++ starting in NDK r12 depend on unwind.
    if (current_cpu == "arm") {
+diff -up a/build/toolchain/gcc_toolchain.gni b/build/toolchain/gcc_toolchain.gni
+--- a/build/toolchain/gcc_toolchain.gni
++++ b/build/toolchain/gcc_toolchain.gni
+@@ -503,7 +503,7 @@ template("gcc_toolchain") {
+ 
+       default_output_dir = "{{root_out_dir}}${default_shlib_subdir}"
+ 
+-      output_prefix = "lib"
++      output_prefix = ""
+ 
+       outputs = [
+         sofile,      
