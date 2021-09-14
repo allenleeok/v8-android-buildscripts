@@ -64,7 +64,7 @@ function build_arch()
 {
     local arch=$1
     local arch_for_android=$(normalize_arch_for_android $arch)
-    local target="mtv8"
+    local target="libmgcv8"
 
     echo "Build v8 $arch variant NO_INTL=${NO_INTL}"
     if [[ "$arch" = "arm64" ]]; then

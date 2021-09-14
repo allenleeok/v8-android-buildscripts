@@ -17,9 +17,9 @@ done
 function installNDK() {
   pushd .
   cd $V8_DIR
-  wget -q https://dl.google.com/android/repository/android-ndk-${NDK_VERSION}-linux-x86_64.zip
-  unzip -q android-ndk-${NDK_VERSION}-linux-x86_64.zip
-  rm -f android-ndk-${NDK_VERSION}-linux-x86_64.zip
+  # wget -q https://dl.google.com/android/repository/android-ndk-${NDK_VERSION}-linux-x86_64.zip
+  unzip -q /code/android-ndk-${NDK_VERSION}-linux-x86_64.zip
+  # rm -f android-ndk-${NDK_VERSION}-linux-x86_64.zip
   popd
 }
 
